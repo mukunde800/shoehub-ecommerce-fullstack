@@ -1,22 +1,30 @@
-// app.js
-require("dotenv").config();
-const express = require("express");
-const cors = require("cors");
-const { sequelize } = require("./models");
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const morgan = require('morgan');
+const path = require('path');
+const { notFound, errorHandler } = require('./middlewares/errorMiddleware');
 
 const app = express();
-app.use(cors());
-app.use(express.json());
 
-app.get("/", (req, res) => res.json({ message: "API OK" }));
+app.use(helmet({ crossOriginResourcePolicy: false }));
+app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+app.use(morgan('dev'));
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// Démarrage direct
-const PORT = process.env.PORT || 3000;
+app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date() }));
 
-sequelize
-  .sync()
-  .then(() => {
-    console.log("✅ DB synchronisée");
-    app.listen(PORT, () => console.log(`🚀 http://localhost:${PORT}`));
-  })
-  .catch((err) => console.error("❌ Erreur DB :", err));
+app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/products', require('./routes/productRoutes'));
+app.use('/api/categories', require('./routes/categoryRoutes'));
+app.use('/api/cart', require('./routes/cartRoutes'));
+app.use('/api/orders', require('./routes/orderRoutes'));
+app.use('/api/users', require('./routes/userRoutes'));
+app.use('/api/reviews', require('./routes/reviewRoutes'));
+
+app.use(notFound);
+app.use(errorHandler);
+
+module.exports = app;
